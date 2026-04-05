@@ -5,22 +5,22 @@ import Achievement from '../models/Achievement.js';
 import DefaultTask from '../models/DefaultTask.js';
 
 const achievements = [
-  { title: 'First Step', description: 'Complete your first task', iconName: 'rocket_launch', category: 'Tasks', target: 1, rarity: 'Common' },
-  { title: 'Task Machine', description: 'Complete 50 tasks', iconName: 'bolt', category: 'Tasks', target: 50, rarity: 'Rare' },
-  { title: 'Century Club', description: 'Complete 100 tasks', iconName: 'military_tech', category: 'Tasks', target: 100, rarity: 'Epic' },
-  { title: 'Task Master', description: 'Complete 500 tasks', iconName: 'workspace_premium', category: 'Tasks', target: 500, rarity: 'Legendary' },
-  { title: 'On Fire', description: '3-day streak', iconName: 'local_fire_department', category: 'Streaks', target: 3, rarity: 'Common' },
-  { title: 'Week Warrior', description: '7-day streak', iconName: 'whatshot', category: 'Streaks', target: 7, rarity: 'Rare' },
-  { title: 'Unstoppable', description: '30-day streak', iconName: 'shield', category: 'Streaks', target: 30, rarity: 'Epic' },
-  { title: 'Iron Will', description: '100-day streak', iconName: 'diamond', category: 'Streaks', target: 100, rarity: 'Legendary' },
-  { title: 'Social Butterfly', description: 'Add 5 friends', iconName: 'group_add', category: 'Social', target: 5, rarity: 'Common' },
-  { title: 'Challenger', description: 'Win 3 challenges', iconName: 'emoji_events', category: 'Social', target: 3, rarity: 'Rare' },
-  { title: 'Top Dog', description: 'Reach #1 on the leaderboard', iconName: 'leaderboard', category: 'Social', target: 1, rarity: 'Legendary' },
-  { title: 'Early Bird', description: 'Complete a task before 7 AM', iconName: 'wb_sunny', category: 'Special', target: 1, rarity: 'Common' },
-  { title: 'Night Owl', description: 'Complete a task after 11 PM', iconName: 'nightlight', category: 'Special', target: 1, rarity: 'Common' },
-  { title: 'Perfectionist', description: 'Complete all daily tasks for a week', iconName: 'star', category: 'Special', target: 7, rarity: 'Epic' },
-  { title: 'Level 10', description: 'Reach Level 10', iconName: 'auto_awesome', category: 'Special', target: 10, rarity: 'Epic' },
-  { title: 'Ascended', description: 'Reach Level 20 — Max Level', iconName: 'rocket', category: 'Special', target: 20, rarity: 'Legendary' },
+  { title: 'First Step', description: 'Complete your first task', iconName: 'rocket_launch', category: 'Tasks', target: 1, rarity: 'Common', xpReward: 50 },
+  { title: 'Task Machine', description: 'Complete 50 tasks', iconName: 'bolt', category: 'Tasks', target: 50, rarity: 'Rare', xpReward: 250 },
+  { title: 'Century Club', description: 'Complete 100 tasks', iconName: 'military_tech', category: 'Tasks', target: 100, rarity: 'Epic', xpReward: 1000 },
+  { title: 'Task Master', description: 'Complete 500 tasks', iconName: 'workspace_premium', category: 'Tasks', target: 500, rarity: 'Legendary', xpReward: 5000 },
+  { title: 'On Fire', description: '3-day streak', iconName: 'local_fire_department', category: 'Streaks', target: 3, rarity: 'Common', xpReward: 50 },
+  { title: 'Week Warrior', description: '7-day streak', iconName: 'whatshot', category: 'Streaks', target: 7, rarity: 'Rare', xpReward: 250 },
+  { title: 'Unstoppable', description: '30-day streak', iconName: 'shield', category: 'Streaks', target: 30, rarity: 'Epic', xpReward: 1000 },
+  { title: 'Iron Will', description: '100-day streak', iconName: 'diamond', category: 'Streaks', target: 100, rarity: 'Legendary', xpReward: 5000 },
+  { title: 'Social Butterfly', description: 'Add 5 friends', iconName: 'group_add', category: 'Social', target: 5, rarity: 'Common', xpReward: 50 },
+  { title: 'Challenger', description: 'Win 3 challenges', iconName: 'emoji_events', category: 'Social', target: 3, rarity: 'Rare', xpReward: 250 },
+  { title: 'Top Dog', description: 'Reach #1 on the leaderboard', iconName: 'leaderboard', category: 'Social', target: 1, rarity: 'Legendary', xpReward: 5000 },
+  { title: 'Early Bird', description: 'Complete a task before 7 AM', iconName: 'wb_sunny', category: 'Special', target: 1, rarity: 'Common', xpReward: 50 },
+  { title: 'Night Owl', description: 'Complete a task after 11 PM', iconName: 'nightlight', category: 'Special', target: 1, rarity: 'Common', xpReward: 50 },
+  { title: 'Perfectionist', description: 'Complete all daily tasks for a week', iconName: 'star', category: 'Special', target: 7, rarity: 'Epic', xpReward: 1000 },
+  { title: 'Level 10', description: 'Reach Level 10', iconName: 'auto_awesome', category: 'Special', target: 10, rarity: 'Epic', xpReward: 1000 },
+  { title: 'Ascended', description: 'Reach Level 20 — Max Level', iconName: 'rocket', category: 'Special', target: 20, rarity: 'Legendary', xpReward: 5000 },
 ];
 
 const defaultTasks = [
@@ -47,7 +47,8 @@ const mockUsers = [
 
 const seedDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI as string);
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/climbirl';
+    await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB for seeding...');
 
     // Achievements

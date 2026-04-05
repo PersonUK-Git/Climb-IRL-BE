@@ -2,8 +2,8 @@
 import mailjetApi from 'node-mailjet';
 // @ts-ignore
 const mailjet = mailjetApi.apiConnect(
-  process.env.MAILJET_API as string,
-  process.env.MAILJET_SECRET as string
+  process.env.MAILJET_API || '',
+  process.env.MAILJET_SECRET || ''
 );
 import nodemailer from 'nodemailer';
 

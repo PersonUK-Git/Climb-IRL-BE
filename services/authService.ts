@@ -8,7 +8,8 @@ import Task from '../models/Task.js';
  * @returns {string} - The JWT token.
  */
 export const generateToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '30d' });
+  const secret = process.env.JWT_SECRET || 'secret';
+  return jwt.sign({ id }, secret, { expiresIn: '30d' });
 };
 
 /**

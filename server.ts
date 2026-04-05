@@ -28,8 +28,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 
 // Database Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/climbirl';
 mongoose
-  .connect(process.env.MONGODB_URI as string)
+  .connect(MONGODB_URI)
   .then(() => {
     console.log('Connected to MongoDB');
     const PORT = process.env.PORT || 5000;

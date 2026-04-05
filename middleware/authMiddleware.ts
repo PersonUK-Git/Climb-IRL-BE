@@ -12,15 +12,20 @@ export const protect = async (req: any, res: any, next: any) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
       req.user = await User.findById(decoded.id).select('-otp -otpExpires');
+      
+      if (!req.user) {
+        return res.status(401).json({ message: 'Not authorized, user not found' });
+      }
+      
       next();
     } catch (error) {
       console.error('Auth error:', error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      return res.status(401).json({ message: 'Not authorized, token failed' });
     }
   }
 
   if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' });
+    return res.status(401).json({ message: 'Not authorized, no token' });
   }
 };
 

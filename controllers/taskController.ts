@@ -73,25 +73,13 @@ export const completeTask = async (req: any, res: any) => {
     if (!user) return res.status(404).json({ message: 'User not found for updating XP' });
     
     // Use service to update stats
-    const updatedStats = updateGamificationStats(user, task.xpReward);
-    
-    user.totalXP = updatedStats.totalXP;
-    user.level = updatedStats.level;
-    user.title = updatedStats.title as string;
+    updateGamificationStats(user, task.xpReward);
     user.tasksCompleted += 1;
 
-    // Update weekly/monthly XP tracking
-    if (!user.weeklyXP) user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
-    if (!user.streakDays) user.streakDays = [false, false, false, false, false, false, false];
-    // @ts-ignore
-    user.weeklyXP[6] += (task.xpReward || 0);
-    user.monthlyXP = (user.monthlyXP || 0) + (task.xpReward || 0);
-    // @ts-ignore
-    user.streakDays[6] = true;
-
-    // Ensure array changes are tracked by Mongoose
+    // Ensure array and date changes are tracked by Mongoose
     user.markModified('weeklyXP');
     user.markModified('streakDays');
+    user.markModified('lastXPUpdate');
 
     await user.save();
 

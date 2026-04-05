@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
   streakDays: { type: [Boolean], default: [false, false, false, false, false, false, false] },
   gender: { type: String, default: '' },
   dateOfBirth: { type: Date },
+  lastXPUpdate: { type: Date, default: Date.now },
   otp: { type: String },
   otpExpires: { type: Date },
 }, { timestamps: true });

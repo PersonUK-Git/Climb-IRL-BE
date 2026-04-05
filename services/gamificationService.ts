@@ -48,8 +48,6 @@ export const maxLevel = 20;
 
 /**
  * Calculate level based on total XP.
- * @param {number} totalXP 
- * @returns {number}
  */
 export const getLevel = (totalXP: number) => {
   for (let i = levelThresholds.length - 1; i >= 0; i--) {
@@ -62,8 +60,6 @@ export const getLevel = (totalXP: number) => {
 
 /**
  * Get title for a specific level.
- * @param {number} level 
- * @returns {string}
  */
 export const getLevelTitle = (level: number) => {
   if (level < 1) return levelTitles[0];
@@ -72,21 +68,78 @@ export const getLevelTitle = (level: number) => {
 };
 
 /**
- * Update user's gamification stats after XP gain.
- * @param {Object} user - Mongoose User object
- * @param {number} xpDelta - Amount of XP gained/lost
- * @returns {Object} - Updated user stats
+ * Resets monthly XP if the current month is different from the last update month.
+ */
+export const resetMonthlyIfNeeded = (user: any, currentMonth: number) => {
+  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
+  if (lastUpdate.getMonth() !== currentMonth || lastUpdate.getFullYear() !== new Date().getFullYear()) {
+    user.monthlyXP = 0;
+  }
+};
+
+/**
+ * Correctly identifies if a day has passed and clears indices to prevent stale data.
+ * This implementation uses a Sun-Sat fixed week (0-6).
+ */
+export const syncWeeklyArrays = (user: any, currentDay: number) => {
+  const now = new Date();
+  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
+  
+  // Normalize dates to start of day for comparison
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const lastUpdateStart = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate()).getTime();
+  
+  const daysDiff = Math.floor((todayStart - lastUpdateStart) / (1000 * 60 * 60 * 24));
+
+  if (daysDiff >= 7) {
+    // Whole week or more passed: reset everything
+    user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
+    user.streakDays = [false, false, false, false, false, false, false];
+  } else if (daysDiff > 0) {
+    // Intervening days: clear each day that was missed
+    // For a fixed Sun-Sat week, we just need to ensure the "today" index is fresh
+    // if we haven't updated it today.
+    user.weeklyXP[currentDay] = 0;
+    user.streakDays[currentDay] = false;
+    
+    // Also clear skip indices if needed (logic choice: just clear today's slot)
+  }
+};
+
+/**
+ * Update user's gamification stats after XP gain, including date-aware rollover.
  */
 export const updateGamificationStats = (user: any, xpDelta: number) => {
+  const now = new Date();
+  const currentDay = now.getDay();
+  const currentMonth = now.getMonth();
+
+  // 1. Handle Rollovers
+  resetMonthlyIfNeeded(user, currentMonth);
+  syncWeeklyArrays(user, currentDay);
+
+  // 2. Apply XP to Total
   const newTotalXP = Math.max(0, (user.totalXP || 0) + xpDelta);
   const newLevel = getLevel(newTotalXP);
   const newTitle = getLevelTitle(newLevel);
-  
+
+  // 3. Apply XP to Periodics
+  if (!user.weeklyXP) user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
+  if (!user.streakDays) user.streakDays = [false, false, false, false, false, false, false];
+
+  user.weeklyXP[currentDay] = (user.weeklyXP[currentDay] || 0) + xpDelta;
+  user.monthlyXP = (user.monthlyXP || 0) + xpDelta;
+  user.streakDays[currentDay] = true;
+
+  // 4. Update core stats and timestamp
+  user.totalXP = newTotalXP;
+  user.level = newLevel;
+  user.title = newTitle;
+  user.lastXPUpdate = now;
+
   return {
     totalXP: newTotalXP,
     level: newLevel,
     title: newTitle
   };
 };
-
-
