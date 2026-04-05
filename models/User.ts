@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   tasksCompleted: { type: Number, default: 0 },
   achievementsUnlocked: { type: Number, default: 0 },
   weeklyXP: { type: [Number], default: [0, 0, 0, 0, 0, 0, 0] },
+  monthlyXP: { type: Number, default: 0 },
   streakDays: { type: [Boolean], default: [false, false, false, false, false, false, false] },
   gender: { type: String, default: '' },
   dateOfBirth: { type: Date },
@@ -20,4 +21,4 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Date },
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);

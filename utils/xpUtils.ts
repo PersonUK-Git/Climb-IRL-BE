@@ -1,4 +1,4 @@
-const levelThresholds = [
+export const levelThresholds = [
   0,      // Level 1:  0 XP
   100,    // Level 2:  100 XP
   300,    // Level 3:  300 XP
@@ -21,7 +21,7 @@ const levelThresholds = [
   19000,  // Level 20: 19,000 XP
 ];
 
-const levelTitles = [
+export const levelTitles = [
   'Newcomer',       // 1
   'Beginner',       // 2
   'Apprentice',     // 3
@@ -44,27 +44,21 @@ const levelTitles = [
   'Ascended',       // 20
 ];
 
-const maxLevel = 20;
+export const maxLevel = 20;
 
-const getLevel = (totalXP) => {
+export const getLevel = (totalXP: number) => {
   for (let i = levelThresholds.length - 1; i >= 0; i--) {
-    if (totalXP >= levelThresholds[i]) {
+    if (totalXP >= (levelThresholds[i] || 0)) {
       return i + 1;
     }
   }
   return 1;
 };
 
-const getLevelTitle = (level) => {
+export const getLevelTitle = (level: number) => {
   if (level < 1) return levelTitles[0];
   if (level > maxLevel) return levelTitles[maxLevel - 1];
   return levelTitles[level - 1];
 };
 
-module.exports = {
-  getLevel,
-  getLevelTitle,
-  levelThresholds,
-  levelTitles,
-  maxLevel,
-};
+

@@ -1,12 +1,17 @@
-const Task = require('../models/Task');
-const User = require('../models/User');
-const { getLevel, getLevelTitle, updateGamificationStats } = require('../services/gamificationService');
+import Task from '../models/Task.js';
+import User from '../models/User.js';
+import { updateGamificationStats } from '../services/gamificationService.js';
+import { ensureDailyTasks } from '../services/taskService.js';
 
 /**
  * Get all tasks for the logged in user.
  */
-const getTasks = async (req, res) => {
+export const getTasks = async (req: any, res: any) => {
   try {
+    // Ensure daily tasks exist for the user
+    await ensureDailyTasks(req.user._id);
+    
+    // Fetch and return the list
     const tasks = await Task.find({ userId: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json(tasks);
   } catch (err) {
@@ -17,7 +22,7 @@ const getTasks = async (req, res) => {
 /**
  * Create a new task.
  */
-const createTask = async (req, res) => {
+export const createTask = async (req: any, res: any) => {
   const { title, category, difficulty, xpReward, dueDate } = req.body;
 
   if (!title || !category || !difficulty || !xpReward) {
@@ -42,7 +47,7 @@ const createTask = async (req, res) => {
 /**
  * Complete a task and reward XP.
  */
-const completeTask = async (req, res) => {
+export const completeTask = async (req: any, res: any) => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -65,19 +70,28 @@ const completeTask = async (req, res) => {
 
     // Fetch user and update gamification stats
     const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found for updating XP' });
     
     // Use service to update stats
     const updatedStats = updateGamificationStats(user, task.xpReward);
     
     user.totalXP = updatedStats.totalXP;
     user.level = updatedStats.level;
-    user.title = updatedStats.title;
+    user.title = updatedStats.title as string;
     user.tasksCompleted += 1;
 
-    // Update weekly XP tracking (simple "today" bucket)
-    // In a real production app, this would use a more robust daily distribution logic
-    user.weeklyXP[6] += task.xpReward;
+    // Update weekly/monthly XP tracking
+    if (!user.weeklyXP) user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
+    if (!user.streakDays) user.streakDays = [false, false, false, false, false, false, false];
+    // @ts-ignore
+    user.weeklyXP[6] += (task.xpReward || 0);
+    user.monthlyXP = (user.monthlyXP || 0) + (task.xpReward || 0);
+    // @ts-ignore
     user.streakDays[6] = true;
+
+    // Ensure array changes are tracked by Mongoose
+    user.markModified('weeklyXP');
+    user.markModified('streakDays');
 
     await user.save();
 
@@ -98,7 +112,7 @@ const completeTask = async (req, res) => {
 /**
  * Delete a task.
  */
-const deleteTask = async (req, res) => {
+export const deleteTask = async (req: any, res: any) => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -117,9 +131,4 @@ const deleteTask = async (req, res) => {
   }
 };
 
-module.exports = {
-  getTasks,
-  createTask,
-  completeTask,
-  deleteTask,
-};
+

@@ -1,8 +1,11 @@
-const mailjet = require('node-mailjet').apiConnect(
-  process.env.MAILJET_API,
-  process.env.MAILJET_SECRET
+// @ts-ignore
+import mailjetApi from 'node-mailjet';
+// @ts-ignore
+const mailjet = mailjetApi.apiConnect(
+  process.env.MAILJET_API as string,
+  process.env.MAILJET_SECRET as string
 );
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 /**
  * Send an OTP code to a user via email.
@@ -11,7 +14,7 @@ const nodemailer = require('nodemailer');
  * @param {string} otp - The 6-digit OTP code.
  * @returns {Promise<boolean>} - Success status.
  */
-const sendOTPEmail = async (email, otp) => {
+export const sendOTPEmail = async (email: string, otp: string) => {
   try {
     // Attempt using Mailjet first
     const request = await mailjet
@@ -47,7 +50,7 @@ const sendOTPEmail = async (email, otp) => {
       });
     console.log('OTP sent via Mailjet:', request.body);
     return true;
-  } catch (err) {
+  } catch (err: any) {
     console.error('Mailjet failed, trying Nodemailer (SMTP):', err.message);
     
     // Fallback to Nodemailer SMTP
@@ -59,7 +62,7 @@ const sendOTPEmail = async (email, otp) => {
         user: process.env.EMAIL_USER,
         password: process.env.EMAIL_PASSWORD,
       },
-    });
+    } as any);
 
     try {
       await transporter.sendMail({
@@ -71,11 +74,11 @@ const sendOTPEmail = async (email, otp) => {
       });
       console.log('OTP sent via SMTP');
       return true;
-    } catch (smtpErr) {
+    } catch (smtpErr: any) {
       console.error('SMTP also failed:', smtpErr.message);
       return false;
     }
   }
 };
 
-module.exports = { sendOTPEmail };
+

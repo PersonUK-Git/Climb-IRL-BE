@@ -1,19 +1,21 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
+import DefaultTask from '../models/DefaultTask.js';
+import Task from '../models/Task.js';
 
 /**
  * Generate a JWT token for a user.
  * @param {string} id - The user ID.
  * @returns {string} - The JWT token.
  */
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+export const generateToken = (id: string) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '30d' });
 };
 
 /**
  * Generate a 6-digit OTP code.
  * @returns {string}
  */
-const generateOTP = () => {
+export const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
@@ -23,7 +25,7 @@ const generateOTP = () => {
  * @param {Object} userData - Registration data (name, username, email, gender, dateOfBirth)
  * @returns {Promise<Object>} - The newly created User object
  */
-const registerUser = async (User, userData) => {
+export const registerUser = async (User: any, userData: any) => {
   const { email, username } = userData;
   
   // Extra safety check in service
@@ -42,11 +44,21 @@ const registerUser = async (User, userData) => {
     title: 'Newcomer'
   });
 
+  // Assign Default Tasks to the new user
+  const defaultTasks = await DefaultTask.find();
+  if (defaultTasks.length > 0) {
+    const tasksToCreate = defaultTasks.map((dt: any) => ({
+      userId: user._id,
+      title: dt.title,
+      category: dt.category,
+      difficulty: dt.difficulty,
+      xpReward: dt.xpReward,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+    }));
+    await Task.insertMany(tasksToCreate);
+  }
+
   return user;
 };
 
-module.exports = {
-  generateToken,
-  generateOTP,
-  registerUser,
-};
+

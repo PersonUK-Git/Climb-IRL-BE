@@ -1,7 +1,7 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
-const protect = async (req, res, next) => {
+export const protect = async (req: any, res: any, next: any) => {
   let token;
 
   if (
@@ -10,7 +10,7 @@ const protect = async (req, res, next) => {
   ) {
     try {
       token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
       req.user = await User.findById(decoded.id).select('-otp -otpExpires');
       next();
     } catch (error) {
@@ -24,4 +24,4 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+
