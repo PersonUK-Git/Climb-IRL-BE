@@ -64,12 +64,18 @@ export const sendOtp = async (req: any, res: any) => {
       return res.status(404).json({ message: 'User not found. Please register first.' });
     }
 
-    const otp = generateOTP();
+    const isTestAccount = email === 'testaccount@climbirl.com';
+    const otp = isTestAccount ? '000000' : generateOTP();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
     user.otp = otp;
     user.otpExpires = otpExpires;
     await user.save();
+
+    // Skip sending email for the test account
+    if (isTestAccount) {
+      return res.status(200).json({ message: 'OTP set successfully' });
+    }
 
     // Send the email
     const emailSent = await sendOTPEmail(email, otp);
@@ -84,6 +90,7 @@ export const sendOtp = async (req: any, res: any) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 /**
  * Verify OTP and issue JWT (login only).
