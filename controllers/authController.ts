@@ -1,11 +1,11 @@
-const User = require('../models/User');
-const { generateOTP, generateToken, registerUser } = require('../services/authService');
-const { sendOTPEmail } = require('../services/emailService');
+import User from '../models/User.js';
+import { generateOTP, generateToken, registerUser } from '../services/authService.js';
+import { sendOTPEmail } from '../services/emailService.js';
 
 /**
  * Register a new user.
  */
-const register = async (req, res) => {
+export const register = async (req: any, res: any) => {
   const { name, username, email, gender, dateOfBirth } = req.body;
 
   if (!name || !username || !email) {
@@ -37,7 +37,7 @@ const register = async (req, res) => {
       name: user.name,
       email: user.email,
       username: user.username,
-      token: generateToken(user._id),
+      token: generateToken(user._id.toString()),
       gender: user.gender,
       dateOfBirth: user.dateOfBirth,
     });
@@ -50,7 +50,7 @@ const register = async (req, res) => {
 /**
  * Request an OTP for email login (existing users only).
  */
-const sendOtp = async (req, res) => {
+export const sendOtp = async (req: any, res: any) => {
   const { email } = req.body;
 
   if (!email) {
@@ -88,7 +88,7 @@ const sendOtp = async (req, res) => {
 /**
  * Verify OTP and issue JWT (login only).
  */
-const verifyOtp = async (req, res) => {
+export const verifyOtp = async (req: any, res: any) => {
   const { email, otp } = req.body;
 
   if (!email || !otp) {
@@ -99,13 +99,13 @@ const verifyOtp = async (req, res) => {
     const user = await User.findOne({ email });
 
     // Validate OTP
-    if (!user || user.otp !== otp || user.otpExpires < new Date()) {
+    if (!user || user.otp !== otp || !user.otpExpires || user.otpExpires < new Date()) {
       return res.status(401).json({ message: 'Invalid or expired OTP' });
     }
 
     // Success: Clear OTP and save
-    user.otp = undefined;
-    user.otpExpires = undefined;
+    user.otp = undefined as any;
+    user.otpExpires = undefined as any;
     await user.save();
 
     res.status(200).json({
@@ -113,7 +113,7 @@ const verifyOtp = async (req, res) => {
       name: user.name,
       email: user.email,
       username: user.username,
-      token: generateToken(user._id),
+      token: generateToken(user._id.toString()),
       gender: user.gender,
       dateOfBirth: user.dateOfBirth,
     });
@@ -123,8 +123,4 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-module.exports = { 
-  register,
-  sendOtp, 
-  verifyOtp 
-};
+

@@ -1,0 +1,4 @@
+controllers/authController.ts(116,28): error TS2345: Argument of type 'ObjectId' is not assignable to parameter of type 'string'.
+controllers/taskController.ts(75,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+controllers/taskController.ts(81,5): error TS2532: Object is possibly 'undefined'.

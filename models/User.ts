@@ -1,6 +1,30 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+export interface IUser extends mongoose.Document {
+  name: string;
+  username: string;
+  email: string;
+  avatarUrl: string;
+  totalXP: number;
+  level: number;
+  title: string;
+  currentStreak: number;
+  longestStreak: number;
+  tasksCompleted: number;
+  achievementsUnlocked: number;
+  weeklyXP: number[];
+  monthlyXP: number;
+  streakDays: boolean[];
+  gender: string;
+  dateOfBirth?: Date;
+  lastXPUpdate: Date;
+  otp?: string;
+  otpExpires?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const userSchema = new mongoose.Schema<IUser>({
   name: { type: String, required: true },
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
@@ -13,11 +37,13 @@ const userSchema = new mongoose.Schema({
   tasksCompleted: { type: Number, default: 0 },
   achievementsUnlocked: { type: Number, default: 0 },
   weeklyXP: { type: [Number], default: [0, 0, 0, 0, 0, 0, 0] },
+  monthlyXP: { type: Number, default: 0 },
   streakDays: { type: [Boolean], default: [false, false, false, false, false, false, false] },
   gender: { type: String, default: '' },
   dateOfBirth: { type: Date },
+  lastXPUpdate: { type: Date, default: Date.now },
   otp: { type: String },
   otpExpires: { type: Date },
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model<IUser>('User', userSchema);
