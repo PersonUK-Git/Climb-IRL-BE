@@ -40,6 +40,55 @@ export interface IRegisterData {
  * @param {IRegisterData} userData - Registration data
  * @returns {Promise<IUser>} - The newly created User object
  */
+/**
+ * Internal helper to handle the actual creation of user and tasks.
+ * Can be run with or without a transaction session.
+ */
+async function _performRegistration(User: Model<IUser>, userData: IRegisterData, session: mongoose.ClientSession | null): Promise<IUser> {
+  const options = session ? { session } : {};
+
+  // 1. Create User
+  const createdUsers = await User.create([{
+    ...userData,
+    totalXP: 0,
+    level: 1,
+    title: 'Newcomer'
+  }], options);
+  
+  const user = createdUsers[0];
+  if (!user) {
+    throw new Error('User creation failed');
+  }
+
+  const userId = user._id;
+
+  // 2. Assign Default Tasks
+  const tasksQuery = DefaultTask.find();
+  if (session) {
+    tasksQuery.session(session);
+  }
+  const defaultTasks = await tasksQuery;
+
+  if (defaultTasks.length > 0) {
+    const tasksToCreate = defaultTasks.map((dt: any) => ({
+      userId: userId,
+      title: dt.title,
+      category: dt.category,
+      difficulty: dt.difficulty,
+      xpReward: dt.xpReward,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+    }));
+    
+    await Task.insertMany(tasksToCreate, options);
+  }
+
+  return user;
+}
+
+/**
+ * Handle user registration creation.
+ * Attempts to use a transaction, but falls back to non-transactional for standalone MongoDB.
+ */
 export const registerUser = async (User: Model<IUser>, userData: IRegisterData): Promise<IUser> => {
   const { email, username } = userData;
   
@@ -52,66 +101,51 @@ export const registerUser = async (User: Model<IUser>, userData: IRegisterData):
     throw new Error(existingUser.email === email ? 'Email already exists' : 'Username already taken');
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
+  let session: mongoose.ClientSession | null = null;
   let user: IUser | undefined;
+
   try {
-    // 1. Create User within the transaction
-    // Note: User.create(docs, options) returns an array when docs is an array
-    const createdUsers = await User.create([{
-      ...userData,
-      totalXP: 0,
-      level: 1,
-      title: 'Newcomer'
-    }], { session });
+    // Attempt with transaction
+    session = await mongoose.startSession();
+    session.startTransaction();
     
-    user = createdUsers[0];
-    if (!user) {
-      throw new Error('User creation failed');
-    }
-
-    const userId = user._id;
-
-    // 2. Assign Default Tasks within the transaction
-    const defaultTasks = await DefaultTask.find().session(session);
-    if (defaultTasks.length > 0) {
-      const tasksToCreate = defaultTasks.map((dt: any) => ({
-        userId: userId,
-        title: dt.title,
-        category: dt.category,
-        difficulty: dt.difficulty,
-        xpReward: dt.xpReward,
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
-      }));
-      await Task.insertMany(tasksToCreate, { session });
-    }
-
+    user = await _performRegistration(User, userData, session);
+    
     await session.commitTransaction();
-    
-    if (!user) {
-      throw new Error('User creation failed');
-    }
-    
     return user;
-  } catch (error) {
-    // Abort the transaction on any error
-    await session.abortTransaction();
-    
-    // Fallback Compensation: If user was created but transaction didn't roll back 
-    // (e.g., due to DB not supporting transactions), manually delete the user.
-    if (user && user._id) {
+  } catch (error: any) {
+    // Check if this is the "No Transactions" error
+    const isTransactionError = error.message.includes('Transaction numbers are only allowed') || 
+                               error.code === 20 ||
+                               error.message.includes('not supported in transactions');
+
+    if (session && session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
+    if (isTransactionError) {
+      console.log('NOTICE: MongoDB Transactions not supported. Retrying in Compatibility Mode...');
+      // Reset user state and retry without transaction
       try {
-        await User.deleteOne({ _id: user._id });
-      } catch (compensationError) {
-        console.error('Compensation failed during registration cleanup:', compensationError);
+        return await _performRegistration(User, userData, null);
+      } catch (retryError) {
+        // Fallback Compensation: Manually cleanup if something fails in non-trans mode
+        const createdUser = await User.findOne({ email: userData.email });
+        if (createdUser) {
+          await User.deleteOne({ _id: createdUser._id });
+        }
+        throw retryError;
       }
     }
     
     throw error;
   } finally {
-    session.endSession();
+    if (session) {
+      session.endSession();
+    }
   }
 };
+
+
 
 
