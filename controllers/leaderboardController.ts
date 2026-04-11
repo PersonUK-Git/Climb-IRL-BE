@@ -1,9 +1,31 @@
 import User from '../models/User.js';
+import { resetMonthlyIfNeeded, syncWeeklyArrays } from '../services/gamificationService.js';
 
 export const getLeaderboard = async (req: any, res: any) => {
   const { period = 'allTime' } = req.query;
 
   try {
+    const now = new Date();
+    
+    // 1. Normalize buckets for ALL users prior to ranking
+    // To optimize, we only fetch users who haven't been updated today
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const usersToSync = await User.find({ 
+      lastXPUpdate: { $lt: startOfToday } 
+    });
+
+    if (usersToSync.length > 0) {
+      const syncPromises = usersToSync.map(user => {
+        const modM = resetMonthlyIfNeeded(user, now);
+        const modW = syncWeeklyArrays(user, now);
+        if (modM || modW) {
+          return user.save();
+        }
+        return Promise.resolve();
+      });
+      await Promise.all(syncPromises);
+    }
+
     let sortField = 'totalXP';
     let pipeline: any[] = [];
 

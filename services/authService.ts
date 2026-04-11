@@ -8,7 +8,11 @@ import Task from '../models/Task.js';
  * @returns {string} - The JWT token.
  */
 export const generateToken = (id: string) => {
-  const secret = process.env.JWT_SECRET || 'secret';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    console.error('CRITICAL ERROR: JWT_SECRET is not defined in environment variables.');
+    throw new Error('Internal Server Error: Missing security configuration');
+  }
   return jwt.sign({ id }, secret, { expiresIn: '30d' });
 };
 

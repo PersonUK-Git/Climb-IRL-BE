@@ -70,19 +70,24 @@ export const getLevelTitle = (level: number) => {
 /**
  * Resets monthly XP if the current month is different from the last update month.
  */
-export const resetMonthlyIfNeeded = (user: any, currentMonth: number) => {
+export const resetMonthlyIfNeeded = (user: any, now: Date) => {
   const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
-  if (lastUpdate.getMonth() !== currentMonth || lastUpdate.getFullYear() !== new Date().getFullYear()) {
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  if (lastUpdate.getMonth() !== currentMonth || lastUpdate.getFullYear() !== currentYear) {
     user.monthlyXP = 0;
+    return true;
   }
+  return false;
 };
 
 /**
  * Correctly identifies if a day has passed and clears indices to prevent stale data.
  * This implementation uses a Sun-Sat fixed week (0-6).
  */
-export const syncWeeklyArrays = (user: any, currentDay: number) => {
-  const now = new Date();
+export const syncWeeklyArrays = (user: any, now: Date) => {
+  const currentDay = now.getDay();
   const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
   
   // Normalize dates to start of day for comparison
@@ -90,20 +95,25 @@ export const syncWeeklyArrays = (user: any, currentDay: number) => {
   const lastUpdateStart = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate()).getTime();
   
   const daysDiff = Math.floor((todayStart - lastUpdateStart) / (1000 * 60 * 60 * 24));
+  let modified = false;
 
   if (daysDiff >= 7) {
     // Whole week or more passed: reset everything
     user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
     user.streakDays = [false, false, false, false, false, false, false];
+    modified = true;
   } else if (daysDiff > 0) {
     // Intervening days: clear each day that was missed
-    // For a fixed Sun-Sat week, we just need to ensure the "today" index is fresh
-    // if we haven't updated it today.
-    user.weeklyXP[currentDay] = 0;
-    user.streakDays[currentDay] = false;
-    
-    // Also clear skip indices if needed (logic choice: just clear today's slot)
+    for (let i = 0; i < daysDiff; i++) {
+      const idx = (currentDay - i + 7) % 7;
+      if (user.weeklyXP[idx] !== 0 || user.streakDays[idx] !== false) {
+        user.weeklyXP[idx] = 0;
+        user.streakDays[idx] = false;
+        modified = true;
+      }
+    }
   }
+  return modified;
 };
 
 /**
@@ -115,8 +125,8 @@ export const updateGamificationStats = (user: any, xpDelta: number) => {
   const currentMonth = now.getMonth();
 
   // 1. Handle Rollovers
-  resetMonthlyIfNeeded(user, currentMonth);
-  syncWeeklyArrays(user, currentDay);
+  resetMonthlyIfNeeded(user, now);
+  syncWeeklyArrays(user, now);
 
   // 2. Apply XP to Total
   const newTotalXP = Math.max(0, (user.totalXP || 0) + xpDelta);
