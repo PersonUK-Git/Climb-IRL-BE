@@ -37,7 +37,7 @@ export const register = async (req: any, res: any) => {
       name: user.name,
       email: user.email,
       username: user.username,
-      token: generateToken(user._id),
+      token: generateToken(user._id.toString()),
       gender: user.gender,
       dateOfBirth: user.dateOfBirth,
     });

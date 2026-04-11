@@ -1,6 +1,30 @@
 import mongoose from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+export interface IUser extends mongoose.Document {
+  name: string;
+  username: string;
+  email: string;
+  avatarUrl: string;
+  totalXP: number;
+  level: number;
+  title: string;
+  currentStreak: number;
+  longestStreak: number;
+  tasksCompleted: number;
+  achievementsUnlocked: number;
+  weeklyXP: number[];
+  monthlyXP: number;
+  streakDays: boolean[];
+  gender: string;
+  dateOfBirth?: Date;
+  lastXPUpdate: Date;
+  otp?: string;
+  otpExpires?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const userSchema = new mongoose.Schema<IUser>({
   name: { type: String, required: true },
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
@@ -22,4 +46,4 @@ const userSchema = new mongoose.Schema({
   otpExpires: { type: Date },
 }, { timestamps: true });
 
-export default mongoose.model('User', userSchema);
+export default mongoose.model<IUser>('User', userSchema);
