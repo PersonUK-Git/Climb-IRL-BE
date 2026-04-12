@@ -8,11 +8,7 @@ import { ensureDailyTasks } from '../services/taskService.js';
  */
 export const getTasks = async (req: any, res: any) => {
   try {
-    // Ensure daily tasks exist for the user
-    await ensureDailyTasks(req.user._id);
-    
-    // Fetch and return the list
-    const tasks = await Task.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const tasks = await ensureDailyTasks(req.user._id);
     res.status(200).json(tasks);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -85,11 +81,7 @@ export const completeTask = async (req: any, res: any) => {
 
     res.status(200).json({ 
       task, 
-      user: { 
-        totalXP: user.totalXP, 
-        level: user.level, 
-        title: user.title 
-      } 
+      user
     });
   } catch (err) {
     console.error('Complete task error:', err);

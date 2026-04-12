@@ -141,6 +141,27 @@ export const updateGamificationStats = (user: any, xpDelta: number) => {
   user.monthlyXP = (user.monthlyXP || 0) + xpDelta;
   user.streakDays[currentDay] = true;
 
+  // Calculate days difference for streak
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
+  const lastUpdateStart = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate()).getTime();
+  const daysDiff = Math.floor((todayStart - lastUpdateStart) / (1000 * 60 * 60 * 24));
+
+  // Update Streak
+  if (daysDiff === 1) {
+    // Consecutive day
+    user.currentStreak = (user.currentStreak || 0) + 1;
+  } else if (daysDiff > 1 || user.currentStreak === 0) {
+    // Missed days OR first task ever (even on account creation day)
+    user.currentStreak = 1;
+  }
+  // Otherwise, if daysDiff === 0 and currentStreak > 0, it's a second task today, keep streak same.
+
+  // Update Longest Streak
+  if (user.currentStreak > (user.longestStreak || 0)) {
+    user.longestStreak = user.currentStreak;
+  }
+
   // 4. Update core stats and timestamp
   user.totalXP = newTotalXP;
   user.level = newLevel;
