@@ -1,11 +1,14 @@
+import mongoose from 'mongoose';
 import DefaultTask from '../models/DefaultTask.js';
+import type { IDefaultTask } from '../models/DefaultTask.js';
 import Task from '../models/Task.js';
+import type { ITask } from '../models/Task.js';
 
 /**
  * Ensures that a user has their daily default tasks for today.
  * If not, it creates them.
  */
-export const ensureDailyTasks = async (userId: string) => {
+export const ensureDailyTasks = async (userId: string | mongoose.Types.ObjectId): Promise<ITask[]> => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -16,14 +19,14 @@ export const ensureDailyTasks = async (userId: string) => {
   // (Tasks with dueDate between now and tomorrow midnight)
   const existingTodayTasks = await Task.find({
     userId,
-    dueDate: { $gte: today, $lt: tomorrow }
-  });
+    'dueDate': { $gte: today, $lt: tomorrow }
+  } as any); // Temporary cast for mongoose-specific type mismatch
 
   if (existingTodayTasks.length === 0) {
-    const defaultTasks = await DefaultTask.find();
+    const defaultTasks: IDefaultTask[] = await DefaultTask.find();
     
     if (defaultTasks.length > 0) {
-      const tasksToCreate = defaultTasks.map((dt: any) => ({
+      const tasksToCreate = defaultTasks.map((dt: IDefaultTask) => ({
         userId,
         title: dt.title,
         category: dt.category,

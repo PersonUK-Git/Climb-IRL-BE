@@ -1,14 +1,28 @@
+import type { Request, Response } from 'express';
 import User from '../models/User.js';
 import { resetMonthlyIfNeeded, syncWeeklyArrays } from '../services/gamificationService.js';
 
-export const getLeaderboard = async (req: any, res: any) => {
-  const { period = 'allTime' } = req.query;
+interface LeaderboardUser {
+  _id: any;
+  name: string;
+  username: string;
+  avatarUrl: string;
+  totalXP: number;
+  level: number;
+  title: string;
+  weeklyXP: number[];
+  monthlyXP: number;
+  weeklyTotal: number;
+  rank?: number;
+}
+
+export const getLeaderboard = async (req: Request, res: Response) => {
+  const { period = 'allTime' } = req.query as { period?: string };
 
   try {
     const now = new Date();
     
     // 1. Normalize buckets for ALL users prior to ranking
-    // To optimize, we only fetch users who haven't been updated today
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const usersToSync = await User.find({ 
       lastXPUpdate: { $lt: startOfToday } 
@@ -27,7 +41,7 @@ export const getLeaderboard = async (req: any, res: any) => {
     }
 
     let sortField = 'totalXP';
-    let pipeline: any[] = [];
+    let pipeline: any[] = []; // Aggregation pipelines often use any[] unless we define a complex union
 
     if (period === 'weekly') {
       // Sum the weeklyXP array
@@ -64,7 +78,7 @@ export const getLeaderboard = async (req: any, res: any) => {
       }
     );
 
-    const leaderboard = await User.aggregate(pipeline);
+    const leaderboard: LeaderboardUser[] = await User.aggregate(pipeline);
     
     // Add Rank and ensure the XP displayed matches the period
     const rankedLeaderboard = leaderboard.map((user, index) => {

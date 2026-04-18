@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import mongoose, { Model } from 'mongoose';
 import DefaultTask from '../models/DefaultTask.js';
+import type { IDefaultTask } from '../models/DefaultTask.js';
 import Task from '../models/Task.js';
 import type { IUser } from '../models/User.js';
 
@@ -9,7 +10,7 @@ import type { IUser } from '../models/User.js';
  * @param {string} id - The user ID.
  * @returns {string} - The JWT token.
  */
-export const generateToken = (id: string) => {
+export const generateToken = (id: string): string => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     console.error('CRITICAL ERROR: JWT_SECRET is not defined in environment variables.');
@@ -22,7 +23,7 @@ export const generateToken = (id: string) => {
  * Generate a 6-digit OTP code.
  * @returns {string}
  */
-export const generateOTP = () => {
+export const generateOTP = (): string => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
@@ -30,16 +31,10 @@ export interface IRegisterData {
   name: string;
   username: string;
   email: string;
-  gender?: string;
-  dateOfBirth?: Date;
+  gender?: string | undefined;
+  dateOfBirth?: Date | undefined;
 }
 
-/**
- * Handle user registration creation.
- * @param {Model<IUser>} User - Mongoose User model
- * @param {IRegisterData} userData - Registration data
- * @returns {Promise<IUser>} - The newly created User object
- */
 /**
  * Internal helper to handle the actual creation of user and tasks.
  * Can be run with or without a transaction session.
@@ -48,29 +43,36 @@ async function _performRegistration(User: Model<IUser>, userData: IRegisterData,
   const options = session ? { session } : {};
 
   // 1. Create User
-  const createdUsers = await User.create([{
-    ...userData,
+  const userDoc: any = { // Cast to any briefly to satisfy complex Mongoose Create types with strict optional properties
+    name: userData.name,
+    username: userData.username,
+    email: userData.email,
     totalXP: 0,
     level: 1,
     title: 'Newcomer'
-  }], options);
+  };
   
-  const user = createdUsers[0];
+  if (userData.gender) userDoc.gender = userData.gender;
+  if (userData.dateOfBirth) userDoc.dateOfBirth = userData.dateOfBirth;
+
+  const createdUsers = await User.create([userDoc], options);
+  
+  const user = createdUsers[0] as IUser;
   if (!user) {
     throw new Error('User creation failed');
   }
 
-  const userId = user._id;
+  const userId = user._id as mongoose.Types.ObjectId;
 
   // 2. Assign Default Tasks
   const tasksQuery = DefaultTask.find();
   if (session) {
     tasksQuery.session(session);
   }
-  const defaultTasks = await tasksQuery;
+  const defaultTasks: IDefaultTask[] = await tasksQuery;
 
   if (defaultTasks.length > 0) {
-    const tasksToCreate = defaultTasks.map((dt: any) => ({
+    const tasksToCreate = defaultTasks.map((dt: IDefaultTask) => ({
       userId: userId,
       title: dt.title,
       category: dt.category,
@@ -113,11 +115,12 @@ export const registerUser = async (User: Model<IUser>, userData: IRegisterData):
     
     await session.commitTransaction();
     return user;
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as Error & { code?: number };
     // Check if this is the "No Transactions" error
-    const isTransactionError = error.message.includes('Transaction numbers are only allowed') || 
-                               error.code === 20 ||
-                               error.message.includes('not supported in transactions');
+    const isTransactionError = err.message.includes('Transaction numbers are only allowed') || 
+                               err.code === 20 ||
+                               err.message.includes('not supported in transactions');
 
     if (session && session.inTransaction()) {
       await session.abortTransaction();

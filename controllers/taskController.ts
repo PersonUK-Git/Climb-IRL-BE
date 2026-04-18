@@ -1,12 +1,15 @@
+import type { Request, Response } from 'express';
 import Task from '../models/Task.js';
+import type { ITask } from '../models/Task.js';
 import User from '../models/User.js';
 import { updateGamificationStats } from '../services/gamificationService.js';
 import { ensureDailyTasks } from '../services/taskService.js';
+import type { AuthTypedRequest } from '../utils/types.js';
 
 /**
  * Get all tasks for the logged in user.
  */
-export const getTasks = async (req: any, res: any) => {
+export const getTasks = async (req: Request, res: Response) => {
   try {
     const tasks = await ensureDailyTasks(req.user._id);
     res.status(200).json(tasks);
@@ -15,10 +18,18 @@ export const getTasks = async (req: any, res: any) => {
   }
 };
 
+interface CreateTaskBody {
+  title: string;
+  category: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Epic';
+  xpReward: number;
+  dueDate?: Date;
+}
+
 /**
  * Create a new task.
  */
-export const createTask = async (req: any, res: any) => {
+export const createTask = async (req: AuthTypedRequest<CreateTaskBody>, res: Response) => {
   const { title, category, difficulty, xpReward, dueDate } = req.body;
 
   if (!title || !category || !difficulty || !xpReward) {
@@ -26,14 +37,16 @@ export const createTask = async (req: any, res: any) => {
   }
 
   try {
-    const task = await Task.create({
+    const taskData: Partial<ITask> = {
       userId: req.user._id,
       title,
       category,
       difficulty,
       xpReward,
-      dueDate,
-    });
+    };
+    if (dueDate) taskData.dueDate = dueDate;
+
+    const task = await Task.create(taskData);
     res.status(201).json(task);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -43,9 +56,10 @@ export const createTask = async (req: any, res: any) => {
 /**
  * Complete a task and reward XP.
  */
-export const completeTask = async (req: any, res: any) => {
+export const completeTask = async (req: Request, res: Response) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    const task = await Task.findById(id);
 
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });
@@ -92,9 +106,10 @@ export const completeTask = async (req: any, res: any) => {
 /**
  * Delete a task.
  */
-export const deleteTask = async (req: any, res: any) => {
+export const deleteTask = async (req: Request, res: Response) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const { id } = req.params;
+    const task = await Task.findById(id);
 
     if (!task) {
       return res.status(404).json({ message: 'Task not found' });

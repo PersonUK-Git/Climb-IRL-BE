@@ -1,6 +1,18 @@
 import mongoose from 'mongoose';
 
-const achievementSchema = new mongoose.Schema({
+export interface IAchievement extends mongoose.Document {
+  title: string;
+  description: string;
+  iconName: string;
+  category: 'Tasks' | 'Streaks' | 'Social' | 'Special';
+  target: number;
+  rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
+  xpReward: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const achievementSchema = new mongoose.Schema<IAchievement>({
   title: { type: String, required: true },
   description: { type: String, required: true },
   iconName: { type: String, required: true },
@@ -22,4 +34,4 @@ const achievementSchema = new mongoose.Schema({
   xpReward: { type: Number, default: 0, min: [0, 'XP reward cannot be negative'] },
 }, { timestamps: true });
 
-export default mongoose.model('Achievement', achievementSchema);
+export default mongoose.model<IAchievement>('Achievement', achievementSchema);

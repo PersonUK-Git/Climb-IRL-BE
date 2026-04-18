@@ -1,9 +1,10 @@
+import type { Request, Response } from 'express';
 import User from '../models/User.js';
 import Task from '../models/Task.js';
 import mongoose from 'mongoose';
 import { calculateUserAchievements } from '../services/achievementService.js';
 
-export const getProfile = async (req: any, res: any) => {
+export const getProfile = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.user._id).select('-otp -otpExpires');
     res.status(200).json(user);
@@ -12,7 +13,7 @@ export const getProfile = async (req: any, res: any) => {
   }
 };
 
-export const getUserAchievements = async (req: any, res: any) => {
+export const getUserAchievements = async (req: Request, res: Response) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -25,18 +26,26 @@ export const getUserAchievements = async (req: any, res: any) => {
   }
 };
 
-export const updateProfile = async (req: any, res: any) => {
+interface UpdateProfileBody {
+  name?: string;
+  username?: string;
+  avatarUrl?: string;
+  gender?: string;
+  dateOfBirth?: Date;
+}
+
+export const updateProfile = async (req: Request<{}, {}, UpdateProfileBody>, res: Response) => {
   const { name, username, avatarUrl, gender, dateOfBirth } = req.body;
 
   try {
     const user = await User.findById(req.user._id);
 
     if (user) {
-      user.name = name || user.name;
-      user.username = username || user.username;
-      user.avatarUrl = avatarUrl || user.avatarUrl;
-      user.gender = gender || user.gender;
-      user.dateOfBirth = dateOfBirth || user.dateOfBirth;
+      if (name) user.name = name;
+      if (username) user.username = username;
+      if (avatarUrl) user.avatarUrl = avatarUrl;
+      if (gender) user.gender = gender;
+      if (dateOfBirth) user.dateOfBirth = dateOfBirth;
 
       const updatedUser = await user.save();
       res.status(200).json(updatedUser);
@@ -48,7 +57,7 @@ export const updateProfile = async (req: any, res: any) => {
   }
 };
 
-export const deleteProfile = async (req: any, res: any) => {
+export const deleteProfile = async (req: Request, res: Response) => {
   const userId = req.user._id;
 
   const performDeletion = async (session: mongoose.ClientSession | null) => {
@@ -74,7 +83,8 @@ export const deleteProfile = async (req: any, res: any) => {
 
     await session.commitTransaction();
     res.status(200).json({ message: 'Account deleted successfully' });
-  } catch (err: any) {
+  } catch (error) {
+    const err = error as Error & { code?: number };
     if (session && session.inTransaction()) {
       await session.abortTransaction();
     }
@@ -88,7 +98,8 @@ export const deleteProfile = async (req: any, res: any) => {
       try {
         await performDeletion(null);
         return res.status(200).json({ message: 'Account deleted successfully' });
-      } catch (retryErr: any) {
+      } catch (retryError) {
+        const retryErr = retryError as Error;
         return res.status(500).json({ message: retryErr.message || 'Server error during deletion' });
       }
     }
