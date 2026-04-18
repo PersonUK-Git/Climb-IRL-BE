@@ -1,9 +1,26 @@
 import Achievement from '../models/Achievement.js';
+import type { IAchievement } from '../models/Achievement.js';
+import type { IUser } from '../models/User.js';
 
-export const calculateUserAchievements = async (user: any) => {
-  const allAchievements = await Achievement.find().lean();
+export interface AchievementResult {
+  _id: any;
+  title: string;
+  description: string;
+  iconName: string;
+  category: string;
+  target: number;
+  current: number;
+  isUnlocked: boolean;
+  progress: number;
+  rarity: string;
+  xpReward: number;
+  unlockedAt: Date | null;
+}
+
+export const calculateUserAchievements = async (user: IUser): Promise<AchievementResult[]> => {
+  const allAchievements: IAchievement[] = await Achievement.find().lean();
   
-  return allAchievements.map((ach: any) => {
+  return allAchievements.map((ach) => {
     let current = 0;
     
     switch (ach.category) {
@@ -48,7 +65,7 @@ export const calculateUserAchievements = async (user: any) => {
       progress: progress,
       rarity: ach.rarity,
       xpReward: ach.xpReward,
-      unlockedAt: isUnlocked ? user.updatedAt : null // Pseudo-unlock date
+      unlockedAt: isUnlocked ? (user.updatedAt as Date) : null // Pseudo-unlock date
     };
   });
 };

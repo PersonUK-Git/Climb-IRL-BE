@@ -1,11 +1,22 @@
 // @ts-ignore
 import mailjetApi from 'node-mailjet';
+import nodemailer from 'nodemailer';
+
 // @ts-ignore
 const mailjet = mailjetApi.apiConnect(
   process.env.MAILJET_API || '',
   process.env.MAILJET_SECRET || ''
 );
-import nodemailer from 'nodemailer';
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  auth: {
+    user: string;
+    password: string;
+  };
+}
 
 /**
  * Send an OTP code to a user via email.
@@ -14,7 +25,7 @@ import nodemailer from 'nodemailer';
  * @param {string} otp - The 6-digit OTP code.
  * @returns {Promise<boolean>} - Success status.
  */
-export const sendOTPEmail = async (email: string, otp: string) => {
+export const sendOTPEmail = async (email: string, otp: string): Promise<boolean> => {
   try {
     // Attempt using Mailjet first
     const request = await mailjet
@@ -50,19 +61,23 @@ export const sendOTPEmail = async (email: string, otp: string) => {
       });
     console.log('OTP sent via Mailjet:', request.body);
     return true;
-  } catch (err: any) {
+  } catch (error) {
+    const err = error as Error;
     console.error('Mailjet failed, trying Nodemailer (SMTP):', err.message);
     
     // Fallback to Nodemailer SMTP
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
+    const smtpConfig: SmtpConfig = {
+      host: process.env.EMAIL_HOST as string,
+      port: Number(process.env.EMAIL_PORT),
       secure: false, // true for 465, false for other ports
       auth: {
-        user: process.env.EMAIL_USER,
-        password: process.env.EMAIL_PASSWORD,
+        user: process.env.EMAIL_USER as string,
+        password: process.env.EMAIL_PASSWORD as string,
       },
-    } as any);
+    };
+
+    // @ts-ignore: Nodemailer types for transporter options are complex to satisfy without deep imports
+    const transporter = nodemailer.createTransport(smtpConfig);
 
     try {
       await transporter.sendMail({
@@ -74,7 +89,8 @@ export const sendOTPEmail = async (email: string, otp: string) => {
       });
       console.log('OTP sent via SMTP');
       return true;
-    } catch (smtpErr: any) {
+    } catch (smtpError) {
+      const smtpErr = smtpError as Error;
       console.error('SMTP also failed:', smtpErr.message);
       return false;
     }

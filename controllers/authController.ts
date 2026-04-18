@@ -1,11 +1,13 @@
+import type { Request, Response } from 'express';
 import User from '../models/User.js';
 import { generateOTP, generateToken, registerUser } from '../services/authService.js';
+import type { IRegisterData } from '../services/authService.js';
 import { sendOTPEmail } from '../services/emailService.js';
 
 /**
  * Register a new user.
  */
-export const register = async (req: any, res: any) => {
+export const register = async (req: Request<{}, {}, IRegisterData>, res: Response) => {
   const { name, username, email, gender, dateOfBirth } = req.body;
 
   if (!name || !username || !email) {
@@ -50,7 +52,7 @@ export const register = async (req: any, res: any) => {
 /**
  * Request an OTP for email login (existing users only).
  */
-export const sendOtp = async (req: any, res: any) => {
+export const sendOtp = async (req: Request<{}, {}, { email: string }>, res: Response) => {
   const { email } = req.body;
 
   if (!email) {
@@ -95,7 +97,7 @@ export const sendOtp = async (req: any, res: any) => {
 /**
  * Verify OTP and issue JWT (login only).
  */
-export const verifyOtp = async (req: any, res: any) => {
+export const verifyOtp = async (req: Request<{}, {}, { email: string, otp: string }>, res: Response) => {
   const { email, otp } = req.body;
 
   if (!email || !otp) {
@@ -111,8 +113,8 @@ export const verifyOtp = async (req: any, res: any) => {
     }
 
     // Success: Clear OTP and save
-    user.otp = undefined as any;
-    user.otpExpires = undefined as any;
+    user.otp = undefined;
+    user.otpExpires = undefined;
     await user.save();
 
     res.status(200).json({

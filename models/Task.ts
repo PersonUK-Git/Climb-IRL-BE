@@ -1,6 +1,19 @@
 import mongoose from 'mongoose';
 
-const taskSchema = new mongoose.Schema({
+export interface ITask extends mongoose.Document {
+  userId: mongoose.Types.ObjectId;
+  title: string;
+  category: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Epic';
+  xpReward: number;
+  isCompleted: boolean;
+  completedAt?: Date | undefined;
+  dueDate?: Date | undefined;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const taskSchema = new mongoose.Schema<ITask>({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   title: { type: String, required: true },
   category: { type: String, required: true },
@@ -11,4 +24,4 @@ const taskSchema = new mongoose.Schema({
   dueDate: { type: Date },
 }, { timestamps: true });
 
-export default mongoose.model('Task', taskSchema);
+export default mongoose.model<ITask>('Task', taskSchema);

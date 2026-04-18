@@ -1,3 +1,5 @@
+import type { IUser } from '../models/User.js';
+
 export const levelThresholds = [
   0,      // Level 1:  0 XP
   100,    // Level 2:  100 XP
@@ -49,7 +51,7 @@ export const maxLevel = 20;
 /**
  * Calculate level based on total XP.
  */
-export const getLevel = (totalXP: number) => {
+export const getLevel = (totalXP: number): number => {
   for (let i = levelThresholds.length - 1; i >= 0; i--) {
     if (totalXP >= (levelThresholds[i] || 0)) {
       return i + 1;
@@ -61,16 +63,16 @@ export const getLevel = (totalXP: number) => {
 /**
  * Get title for a specific level.
  */
-export const getLevelTitle = (level: number) => {
-  if (level < 1) return levelTitles[0];
-  if (level > maxLevel) return levelTitles[maxLevel - 1];
-  return levelTitles[level - 1];
+export const getLevelTitle = (level: number): string => {
+  if (level < 1) return levelTitles[0]!;
+  if (level > maxLevel) return levelTitles[maxLevel - 1]!;
+  return levelTitles[level - 1]!;
 };
 
 /**
  * Resets monthly XP if the current month is different from the last update month.
  */
-export const resetMonthlyIfNeeded = (user: any, now: Date) => {
+export const resetMonthlyIfNeeded = (user: IUser, now: Date): boolean => {
   const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -86,7 +88,7 @@ export const resetMonthlyIfNeeded = (user: any, now: Date) => {
  * Correctly identifies if a day has passed and clears indices to prevent stale data.
  * This implementation uses a Sun-Sat fixed week (0-6).
  */
-export const syncWeeklyArrays = (user: any, now: Date) => {
+export const syncWeeklyArrays = (user: IUser, now: Date): boolean => {
   const currentDay = now.getDay();
   const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
   
@@ -119,10 +121,9 @@ export const syncWeeklyArrays = (user: any, now: Date) => {
 /**
  * Update user's gamification stats after XP gain, including date-aware rollover.
  */
-export const updateGamificationStats = (user: any, xpDelta: number) => {
+export const updateGamificationStats = (user: IUser, xpDelta: number) => {
   const now = new Date();
   const currentDay = now.getDay();
-  const currentMonth = now.getMonth();
 
   // 1. Handle Rollovers
   resetMonthlyIfNeeded(user, now);
@@ -137,7 +138,8 @@ export const updateGamificationStats = (user: any, xpDelta: number) => {
   if (!user.weeklyXP) user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
   if (!user.streakDays) user.streakDays = [false, false, false, false, false, false, false];
 
-  user.weeklyXP[currentDay] = (user.weeklyXP[currentDay] || 0) + xpDelta;
+  const currentWeeklyXP = user.weeklyXP[currentDay] ?? 0;
+  user.weeklyXP[currentDay] = currentWeeklyXP + xpDelta;
   user.monthlyXP = (user.monthlyXP || 0) + xpDelta;
   user.streakDays[currentDay] = true;
 

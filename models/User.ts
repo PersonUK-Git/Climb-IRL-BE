@@ -16,10 +16,10 @@ export interface IUser extends mongoose.Document {
   monthlyXP: number;
   streakDays: boolean[];
   gender: string;
-  dateOfBirth?: Date;
+  dateOfBirth?: Date | undefined;
   lastXPUpdate: Date;
-  otp?: string;
-  otpExpires?: Date;
+  otp?: string | undefined;
+  otpExpires?: Date | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
