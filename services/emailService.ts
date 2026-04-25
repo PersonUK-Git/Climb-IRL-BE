@@ -2,11 +2,23 @@
 import mailjetApi from 'node-mailjet';
 import nodemailer from 'nodemailer';
 
-// @ts-ignore
-const mailjet = mailjetApi.apiConnect(
-  process.env.MAILJET_API || '',
-  process.env.MAILJET_SECRET || ''
-);
+let mailjetClient: any = null;
+
+const getMailjet = () => {
+  if (mailjetClient) return mailjetClient;
+  
+  const apiKey = process.env.MAILJET_API || '';
+  const apiSecret = process.env.MAILJET_SECRET || '';
+  
+  if (!apiKey || !apiSecret) {
+    console.warn('Mailjet credentials missing. Email service will only use fallback SMTP.');
+    return null;
+  }
+
+  // @ts-ignore
+  mailjetClient = mailjetApi.apiConnect(apiKey, apiSecret);
+  return mailjetClient;
+};
 
 interface SmtpConfig {
   host: string;
@@ -27,6 +39,9 @@ interface SmtpConfig {
  */
 export const sendOTPEmail = async (email: string, otp: string): Promise<boolean> => {
   try {
+    const mailjet = getMailjet();
+    if (!mailjet) throw new Error('Mailjet not initialized');
+
     // Attempt using Mailjet first
     const request = await mailjet
       .post('send', { version: 'v3.1' })

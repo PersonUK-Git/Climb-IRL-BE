@@ -1,6 +1,10 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+
+// Initialize environment variables first
+dotenv.config();
+
 import cors from 'cors';
 import mongoose from 'mongoose';
 import morgan from 'morgan';
@@ -14,8 +18,6 @@ import leaderboardRoutes from './routes/leaderboardRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config();
 
 const app = express();
 

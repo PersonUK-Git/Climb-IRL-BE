@@ -1,17 +1,27 @@
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import Task from '../models/Task.js';
 import type { ITask } from '../models/Task.js';
 import User from '../models/User.js';
 import { updateGamificationStats } from '../services/gamificationService.js';
-import { ensureDailyTasks } from '../services/taskService.js';
-import type { AuthTypedRequest } from '../utils/types.js';
+import { ensureDailyTasks, rerollTask, resetRerollsIfNeeded } from '../services/taskService.js';
+import type { AuthRequest, AuthTypedRequest } from '../utils/types.js';
 
 /**
  * Get all tasks for the logged in user.
  */
-export const getTasks = async (req: Request, res: Response) => {
+export const getTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const tasks = await ensureDailyTasks(req.user._id);
+    const timezoneOffsetStr = req.headers['x-timezone-offset'];
+    const timezoneOffset = parseInt(Array.isArray(timezoneOffsetStr) ? timezoneOffsetStr[0]! : (timezoneOffsetStr || '0')) || 0;
+    
+    // Reset rerolls for a new day
+    const user = await User.findById(req.user._id);
+    if (user) {
+      const reset = resetRerollsIfNeeded(user, timezoneOffset);
+      if (reset) await user.save();
+    }
+
+    const tasks = await ensureDailyTasks(req.user._id, timezoneOffset);
     res.status(200).json(tasks);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -56,7 +66,7 @@ export const createTask = async (req: AuthTypedRequest<CreateTaskBody>, res: Res
 /**
  * Complete a task and reward XP.
  */
-export const completeTask = async (req: Request, res: Response) => {
+export const completeTask = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const task = await Task.findById(id);
@@ -82,8 +92,12 @@ export const completeTask = async (req: Request, res: Response) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found for updating XP' });
     
+    // Extract timezone offset from header
+    const timezoneOffsetStr = req.headers['x-timezone-offset'];
+    const timezoneOffset = parseInt(Array.isArray(timezoneOffsetStr) ? timezoneOffsetStr[0]! : (timezoneOffsetStr || '0')) || 0;
+
     // Use service to update stats
-    updateGamificationStats(user, task.xpReward);
+    updateGamificationStats(user, task.xpReward, timezoneOffset);
     user.tasksCompleted += 1;
 
     // Ensure array and date changes are tracked by Mongoose
@@ -106,7 +120,7 @@ export const completeTask = async (req: Request, res: Response) => {
 /**
  * Delete a task.
  */
-export const deleteTask = async (req: Request, res: Response) => {
+export const deleteTask = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const task = await Task.findById(id);
@@ -123,6 +137,30 @@ export const deleteTask = async (req: Request, res: Response) => {
     res.status(200).json({ message: 'Task removed' });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Reroll a task.
+ */
+export const rerollTaskController = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { watchAd } = req.body as { watchAd?: boolean };
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const timezoneOffsetStr = req.headers['x-timezone-offset'];
+    const timezoneOffset = parseInt(Array.isArray(timezoneOffsetStr) ? timezoneOffsetStr[0]! : (timezoneOffsetStr || '0')) || 0;
+    const updatedTask = await rerollTask(user, id, timezoneOffset, !!watchAd);
+
+    res.status(200).json({
+      task: updatedTask,
+      user
+    });
+  } catch (err: any) {
+    console.error(`[RerollError] Task: ${req.params.id}, Error: ${err.message}`);
+    res.status(400).json({ message: err.message || 'Server error during reroll' });
   }
 };
 
