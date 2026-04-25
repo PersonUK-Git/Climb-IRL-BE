@@ -18,6 +18,8 @@ export interface IUser extends mongoose.Document {
   gender: string;
   dateOfBirth?: Date | undefined;
   lastXPUpdate: Date;
+  rerollsRemaining: number;
+  lastRerollUpdate: Date;
   otp?: string | undefined;
   otpExpires?: Date | undefined;
   createdAt: Date;
@@ -42,6 +44,8 @@ const userSchema = new mongoose.Schema<IUser>({
   gender: { type: String, default: '' },
   dateOfBirth: { type: Date },
   lastXPUpdate: { type: Date, default: Date.now },
+  rerollsRemaining: { type: Number, default: 3 },
+  lastRerollUpdate: { type: Date, default: Date.now },
   otp: { type: String },
   otpExpires: { type: Date },
 }, { timestamps: true });

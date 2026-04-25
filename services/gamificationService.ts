@@ -72,12 +72,18 @@ export const getLevelTitle = (level: number): string => {
 /**
  * Resets monthly XP if the current month is different from the last update month.
  */
-export const resetMonthlyIfNeeded = (user: IUser, now: Date): boolean => {
+export const resetMonthlyIfNeeded = (user: IUser, now: Date, timezoneOffset: number = 0): boolean => {
+  // Convert UTC dates to local dates based on offset
   const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  const localLastUpdate = new Date(lastUpdate.getTime() + (timezoneOffset * 60000));
+  const localNow = new Date(now.getTime() + (timezoneOffset * 60000));
 
-  if (lastUpdate.getMonth() !== currentMonth || lastUpdate.getFullYear() !== currentYear) {
+  const lastUpdateMonth = localLastUpdate.getUTCMonth();
+  const lastUpdateYear = localLastUpdate.getUTCFullYear();
+  const currentMonth = localNow.getUTCMonth();
+  const currentYear = localNow.getUTCFullYear();
+
+  if (lastUpdateMonth !== currentMonth || lastUpdateYear !== currentYear) {
     user.monthlyXP = 0;
     return true;
   }
@@ -86,17 +92,24 @@ export const resetMonthlyIfNeeded = (user: IUser, now: Date): boolean => {
 
 /**
  * Correctly identifies if a day has passed and clears indices to prevent stale data.
- * This implementation uses a Sun-Sat fixed week (0-6).
+ * This implementation uses a Mon-Sun fixed week (0-6).
  */
-export const syncWeeklyArrays = (user: IUser, now: Date): boolean => {
-  const currentDay = now.getDay();
-  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
+export const syncWeeklyArrays = (user: IUser, now: Date, timezoneOffset: number = 0): boolean => {
+  const localNow = new Date(now.getTime() + (timezoneOffset * 60000));
+  // Convert Sun-Sat (0-6) to Mon-Sun (0-6)
+  const currentDay = (localNow.getUTCDay() + 6) % 7;
   
-  // Normalize dates to start of day for comparison
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const lastUpdateStart = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate()).getTime();
+  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
+  const localLastUpdate = new Date(lastUpdate.getTime() + (timezoneOffset * 60000));
+  
+  // Normalize dates to start of local day for comparison
+  const todayStart = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate())).getTime();
+  const lastUpdateStart = new Date(Date.UTC(localLastUpdate.getUTCFullYear(), localLastUpdate.getUTCMonth(), localLastUpdate.getUTCDate())).getTime();
   
   const daysDiff = Math.floor((todayStart - lastUpdateStart) / (1000 * 60 * 60 * 24));
+  
+  console.log(`[StreakSync] todayStart: ${new Date(todayStart).toISOString()}, lastUpdateStart: ${new Date(lastUpdateStart).toISOString()}, daysDiff: ${daysDiff}, currentDay: ${currentDay}`);
+  
   let modified = false;
 
   if (daysDiff >= 7) {
@@ -105,14 +118,24 @@ export const syncWeeklyArrays = (user: IUser, now: Date): boolean => {
     user.streakDays = [false, false, false, false, false, false, false];
     modified = true;
   } else if (daysDiff > 0) {
-    // Intervening days: clear each day that was missed
+    // Clone arrays to safely modify and re-assign
+    const updatedWeeklyXP = [...user.weeklyXP];
+    const updatedStreakDays = [...user.streakDays];
+
+    // Clear each stale/missed day from today back to the last update (exclusive)
     for (let i = 0; i < daysDiff; i++) {
       const idx = (currentDay - i + 7) % 7;
-      if (user.weeklyXP[idx] !== 0 || user.streakDays[idx] !== false) {
-        user.weeklyXP[idx] = 0;
-        user.streakDays[idx] = false;
+      console.log(`[StreakSync] Clearing index ${idx} as it is stale/missed`);
+      if (updatedWeeklyXP[idx] !== 0 || updatedStreakDays[idx] !== false) {
+        updatedWeeklyXP[idx] = 0;
+        updatedStreakDays[idx] = false;
         modified = true;
       }
+    }
+
+    if (modified) {
+      user.weeklyXP = updatedWeeklyXP;
+      user.streakDays = updatedStreakDays;
     }
   }
   return modified;
@@ -121,13 +144,23 @@ export const syncWeeklyArrays = (user: IUser, now: Date): boolean => {
 /**
  * Update user's gamification stats after XP gain, including date-aware rollover.
  */
-export const updateGamificationStats = (user: IUser, xpDelta: number) => {
+export const updateGamificationStats = (user: IUser, xpDelta: number, timezoneOffset: number = 0) => {
   const now = new Date();
-  const currentDay = now.getDay();
+  const localNow = new Date(now.getTime() + (timezoneOffset * 60000));
+  // Convert Sun-Sat (0-6) to Mon-Sun (0-6)
+  const currentDay = (localNow.getUTCDay() + 6) % 7;
+
+  const todayStart = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate())).getTime();
+  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
+  const localLastUpdate = new Date(lastUpdate.getTime() + (timezoneOffset * 60000));
+  const lastUpdateStart = new Date(Date.UTC(localLastUpdate.getUTCFullYear(), localLastUpdate.getUTCMonth(), localLastUpdate.getUTCDate())).getTime();
+  const daysDiff = Math.floor((todayStart - lastUpdateStart) / (1000 * 60 * 60 * 24));
+
+  console.log(`[GamificationDebug] MonSunDay: ${currentDay}, daysDiff: ${daysDiff}, xpDelta: ${xpDelta}`);
 
   // 1. Handle Rollovers
-  resetMonthlyIfNeeded(user, now);
-  syncWeeklyArrays(user, now);
+  resetMonthlyIfNeeded(user, now, timezoneOffset);
+  syncWeeklyArrays(user, now, timezoneOffset);
 
   // 2. Apply XP to Total
   const newTotalXP = Math.max(0, (user.totalXP || 0) + xpDelta);
@@ -135,21 +168,26 @@ export const updateGamificationStats = (user: IUser, xpDelta: number) => {
   const newTitle = getLevelTitle(newLevel);
 
   // 3. Apply XP to Periodics
-  if (!user.weeklyXP) user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
-  if (!user.streakDays) user.streakDays = [false, false, false, false, false, false, false];
+  if (!user.weeklyXP || user.weeklyXP.length < 7) user.weeklyXP = [0, 0, 0, 0, 0, 0, 0];
+  if (!user.streakDays || user.streakDays.length < 7) user.streakDays = [false, false, false, false, false, false, false];
 
-  const currentWeeklyXP = user.weeklyXP[currentDay] ?? 0;
-  user.weeklyXP[currentDay] = currentWeeklyXP + xpDelta;
+  // Clone arrays and re-assign to ensure Mongoose tracks the changes
+  const updatedWeeklyXP = [...user.weeklyXP];
+  const updatedStreakDays = [...user.streakDays];
+
+  const currentWeeklyXP = updatedWeeklyXP[currentDay] ?? 0;
+  updatedWeeklyXP[currentDay] = currentWeeklyXP + xpDelta;
+  user.weeklyXP = updatedWeeklyXP;
+  
+  updatedStreakDays[currentDay] = true;
+  user.streakDays = updatedStreakDays;
+  
   user.monthlyXP = (user.monthlyXP || 0) + xpDelta;
-  user.streakDays[currentDay] = true;
 
-  // Calculate days difference for streak
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const lastUpdate = user.lastXPUpdate ? new Date(user.lastXPUpdate) : new Date(0);
-  const lastUpdateStart = new Date(lastUpdate.getFullYear(), lastUpdate.getMonth(), lastUpdate.getDate()).getTime();
-  const daysDiff = Math.floor((todayStart - lastUpdateStart) / (1000 * 60 * 60 * 24));
+  console.log(`[GamificationDebug] After update - weeklyXP: ${user.weeklyXP}, streakDays: ${user.streakDays}`);
 
-  // Update Streak
+  // 4. Update Streak
+  const oldStreak = user.currentStreak;
   if (daysDiff === 1) {
     // Consecutive day
     user.currentStreak = (user.currentStreak || 0) + 1;
@@ -157,14 +195,15 @@ export const updateGamificationStats = (user: IUser, xpDelta: number) => {
     // Missed days OR first task ever (even on account creation day)
     user.currentStreak = 1;
   }
-  // Otherwise, if daysDiff === 0 and currentStreak > 0, it's a second task today, keep streak same.
+  
+  console.log(`[StreakUpdate] daysDiff: ${daysDiff}, oldStreak: ${oldStreak}, newStreak: ${user.currentStreak}`);
 
   // Update Longest Streak
   if (user.currentStreak > (user.longestStreak || 0)) {
     user.longestStreak = user.currentStreak;
   }
 
-  // 4. Update core stats and timestamp
+  // 5. Update core stats and timestamp
   user.totalXP = newTotalXP;
   user.level = newLevel;
   user.title = newTitle;
