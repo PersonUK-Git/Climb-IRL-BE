@@ -4,6 +4,7 @@ import type { ITask } from '../models/Task.js';
 import User from '../models/User.js';
 import { updateGamificationStats } from '../services/gamificationService.js';
 import { ensureDailyTasks, rerollTask, resetRerollsIfNeeded } from '../services/taskService.js';
+import { verifyTaskProof } from '../services/aiService.js';
 import type { AuthRequest, AuthTypedRequest } from '../utils/types.js';
 
 /**
@@ -113,6 +114,72 @@ export const completeTask = async (req: AuthRequest, res: Response) => {
     });
   } catch (err) {
     console.error('Complete task error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Verify task with AI and reward XP if valid.
+ */
+export const verifyAndCompleteTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { imageBase64, proofNote } = req.body;
+
+    if (!imageBase64 && !proofNote) {
+      return res.status(400).json({ message: 'At least one form of proof (photo or note) is required' });
+    }
+
+    const task = await Task.findById(id);
+    if (!task) return res.status(404).json({ message: 'Task not found' });
+    if (task.userId.toString() !== req.user._id.toString()) return res.status(401).json({ message: 'Unauthorized' });
+    if (task.isCompleted) return res.status(400).json({ message: 'Task already completed' });
+
+    // AI Verification if image is provided
+    if (imageBase64) {
+      console.log(`[AI] Verifying task: ${task.title}`);
+      const verification = await verifyTaskProof(task.title, imageBase64);
+      
+      if (!verification.valid) {
+        return res.status(400).json({ 
+          message: 'AI Verification Failed', 
+          reason: verification.reason 
+        });
+      }
+      task.proofUrl = 'ai_verified'; // Placeholder for now, could be a real URL later
+    }
+
+    if (proofNote) {
+      task.proofNote = proofNote;
+    }
+
+    // Mark as completed
+    task.isCompleted = true;
+    task.completedAt = new Date();
+    await task.save();
+
+    // Reward XP
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const timezoneOffsetStr = req.headers['x-timezone-offset'];
+    const timezoneOffset = parseInt(Array.isArray(timezoneOffsetStr) ? timezoneOffsetStr[0]! : (timezoneOffsetStr || '0')) || 0;
+
+    updateGamificationStats(user, task.xpReward, timezoneOffset);
+    user.tasksCompleted += 1;
+    
+    user.markModified('weeklyXP');
+    user.markModified('streakDays');
+    user.markModified('lastXPUpdate');
+    await user.save();
+
+    res.status(200).json({
+      message: 'Task verified and completed successfully!',
+      task,
+      user
+    });
+  } catch (err) {
+    console.error('Verify task error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
