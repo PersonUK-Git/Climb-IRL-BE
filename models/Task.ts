@@ -8,6 +8,8 @@ export interface ITask extends mongoose.Document {
   xpReward: number;
   isCompleted: boolean;
   completedAt?: Date | undefined;
+  proofNote?: string;
+  proofUrl?: string;
   dueDate?: Date | undefined;
   createdAt: Date;
   updatedAt: Date;
@@ -21,6 +23,8 @@ const taskSchema = new mongoose.Schema<ITask>({
   xpReward: { type: Number, required: true },
   isCompleted: { type: Boolean, default: false },
   completedAt: { type: Date },
+  proofNote: { type: String },
+  proofUrl: { type: String },
   dueDate: { type: Date },
 }, { timestamps: true });
 
